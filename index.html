@@ -124,6 +124,10 @@ dialog h2{margin:0 0 14px;font:700 26px "Barlow Condensed",sans-serif}
    <div class="f"><label for="maxAlt">Max altitude (ft)</label><input id="maxAlt" type="number" min="0" step="1000"><span class="hint">0 = no limit</span></div>
   </div>
   <div class="two">
+   <div class="f"><label for="theme">Colors</label><select id="theme"><option value="dark">Dark</option><option value="light">Light</option><option value="auto">Match this device</option></select></div>
+   <div class="f"></div>
+  </div>
+  <div class="two">
    <div class="f"><label for="feature">Featured plane</label><select id="feature"><option value="mix">Mix it up (rotate)</option><option value="interesting">Most interesting</option><option value="closest">Always closest</option></select></div>
    <div class="f"><label for="rotate">Rotate every</label><select id="rotate"><option value="10">10 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option><option value="60">1 minute</option></select></div>
   </div>
@@ -140,7 +144,7 @@ dialog h2{margin:0 0 14px;font:700 26px "Barlow Condensed",sans-serif}
 {
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const DEF={feature:'mix',rotate:20,place:'',auto:'',lat:38.8977,lon:-77.0365,rad:10,minAlt:300,maxAlt:0,every:10,ground:'hide'};
+const DEF={theme:'dark',feature:'mix',rotate:20,place:'',auto:'',lat:38.8977,lon:-77.0365,rad:10,minAlt:300,maxAlt:0,every:10,ground:'hide'};
 let cfg={...DEF},firstRun=true;
 try{const v=localStorage.getItem('overhead-cfg');if(v){Object.assign(cfg,JSON.parse(v));firstRun=false}}catch(e){}
 const saveCfg=()=>{try{localStorage.setItem('overhead-cfg',JSON.stringify(cfg))}catch(e){}};
@@ -151,14 +155,14 @@ BAW:'British Airways',VIR:'Virgin Atlantic',DLH:'Lufthansa',AFR:'Air France',KLM
 UAE:'Emirates',QTR:'Qatar',ETD:'Etihad',SVA:'Saudia',ETH:'Ethiopian',RAM:'Royal Air Maroc',ACA:'Air Canada',JZA:'Air Canada Express',WJA:'WestJet',CMP:'Copa',AVA:'Avianca',TAI:'Avianca',AMX:'Aeroméxico',
 KAL:'Korean Air',ANA:'ANA',JAL:'Japan Airlines',AIC:'Air India',CPA:'Cathay Pacific',FDX:'FedEx',UPS:'UPS',GTI:'Atlas Air',ABX:'ABX Air',EJA:'NetJets',LXJ:'Flexjet',XOJ:'XO',
 ITY:'ITA Airways',LOT:'LOT Polish',CCA:'Air China',EVA:'EVA Air',CAL:'China Airlines',SIA:'Singapore',AAR:'Asiana',ELY:'El Al',RJA:'Royal Jordanian',SAA:'South African',KQA:'Kenya Airways',BEL:'Brussels Airlines',FIN:'Finnair',TSC:'Air Transat',CFG:'Condor',LAN:'LATAM',TAM:'LATAM Brasil',ARG:'Aerolíneas Argentinas',VOI:'Volaris',CLX:'Cargolux',GEC:'Lufthansa Cargo',CKS:'Kalitta Air',
-CFS:'Empire (FedEx)',PAT:'U.S. Army',RCH:'U.S. Air Force (Reach)',SAM:'U.S. Air Force (Special Air Mission)',CNV:'U.S. Navy'};
+ATN:'Air Transport International',CFS:'Empire (FedEx)',PAT:'U.S. Army',RCH:'U.S. Air Force (Reach)',SAM:'U.S. Air Force (Special Air Mission)',CNV:'U.S. Navy'};
 const TYPES={B737:'Boeing 737-700',B738:'Boeing 737-800',B739:'Boeing 737-900',B38M:'Boeing 737 MAX 8',B39M:'Boeing 737 MAX 9',B3XM:'Boeing 737 MAX 10',B752:'Boeing 757-200',B753:'Boeing 757-300',B763:'Boeing 767-300',B764:'Boeing 767-400',
 B772:'Boeing 777-200',B77W:'Boeing 777-300ER',B789:'Boeing 787-9',B788:'Boeing 787-8',B78X:'Boeing 787-10',B744:'Boeing 747-400',B748:'Boeing 747-8',A319:'Airbus A319',A320:'Airbus A320',A321:'Airbus A321',A20N:'Airbus A320neo',A21N:'Airbus A321neo',
 A332:'Airbus A330-200',A333:'Airbus A330-300',A339:'Airbus A330-900',A359:'Airbus A350-900',A35K:'Airbus A350-1000',A388:'Airbus A380',BCS1:'Airbus A220-100',BCS3:'Airbus A220-300',E170:'Embraer 170',E75L:'Embraer 175',E75S:'Embraer 175',
 E190:'Embraer 190',E290:'Embraer E190-E2',CRJ2:'Bombardier CRJ200',CRJ7:'Bombardier CRJ700',CRJ9:'Bombardier CRJ900',DH8D:'Dash 8 Q400',AT76:'ATR 72',C172:'Cessna 172',C182:'Cessna 182',SR22:'Cirrus SR22',PC12:'Pilatus PC-12',
-C68A:'Citation Latitude',C560:'Citation Excel',CL35:'Challenger 350',GLF4:'Gulfstream IV',GLF5:'Gulfstream V',GLF6:'Gulfstream G650',GL7T:'Global 7500',H60:'Black Hawk',S76:'Sikorsky S-76',EC45:'Airbus H145',B06:'Bell 206',C30J:'C-130J Hercules',C17:'C-17 Globemaster',K35R:'KC-135',V22:'V-22 Osprey'};
+C68A:'Citation Latitude',C560:'Citation Excel',CL35:'Challenger 350',GLF4:'Gulfstream IV',GLF5:'Gulfstream V',GLF6:'Gulfstream G650',GL7T:'Global 7500',H60:'Black Hawk',S76:'Sikorsky S-76',EC45:'Airbus H145',B06:'Bell 206',H500:'MD 500 helicopter',EC35:'Airbus H135',AS50:'Airbus AS350',B407:'Bell 407',B429:'Bell 429',A139:'Leonardo AW139',A306:'Airbus A300',B712:'Boeing 717',B77L:'Boeing 777-200LR/F',E55P:'Phenom 300',C25A:'Citation CJ2',C25B:'Citation CJ3',BE20:'King Air 200',BE9L:'King Air 90',P28A:'Piper Cherokee',PA34:'Piper Seneca',DA40:'Diamond DA40',C30J:'C-130J Hercules',C17:'C-17 Globemaster',K35R:'KC-135',V22:'V-22 Osprey'};
 
-const US=new Set(['AAL','UAL','DAL','SWA','JBU','ASA','FFT','NKS','AAY','MXY','HAL','SCX','RPA','EDV','ENY','SKW','PDT','JIA','GJS','AWI','ASH','CPZ','QXE','FDX','UPS','GTI','ABX','EJA','LXJ','XOJ','CFS','CKS']);
+const US=new Set(['AAL','UAL','DAL','SWA','JBU','ASA','FFT','NKS','AAY','MXY','HAL','SCX','RPA','EDV','ENY','SKW','PDT','JIA','GJS','AWI','ASH','CPZ','QXE','FDX','UPS','GTI','ABX','EJA','LXJ','XOJ','CFS','CKS','ATN']);
 const WIDE=new Set(['B744','B748','B752','B753','B762','B763','B764','B772','B77L','B77W','B778','B779','B788','B789','B78X','A332','A333','A338','A339','A343','A346','A359','A35K','A388','MD11','C17','C5M','K35R','KC46','E3TF','E6','B742','VC25']);
 const R=100; // scope radius in svg units
 let rot={hex:null,at:0}; const shown=new Map(); let lastFeat=null;
@@ -218,25 +222,30 @@ async function poll(){
  lookupRoutes();
  render();
 }
+const routeTries=new Map(); // callsign -> failed attempts (so a flaky lookup is retried a few times)
 async function lookupRoutes(){
- const need=planes.filter(p=>p.cs&&!routes.has(p.cs)&&!pending.has(p.cs)&&/^[A-Z]{3}\d/.test(p.cs)).slice(0,20);
+ // Featured plane first, then nearest; a few at a time to be polite to the free service.
+ const f=featured();
+ const order=f?[f,...planes.filter(p=>p!==f)]:planes;
+ const need=order.filter(p=>p.cs&&!routes.has(p.cs)&&!pending.has(p.cs)&&/^[A-Z]{3}\d/.test(p.cs)).slice(0,4);
  if(!need.length)return;
- need.forEach(p=>pending.add(p.cs));
- try{
-  const opt={method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({planes:need.map(p=>({callsign:p.cs,lat:p.lat,lng:p.lon}))})};
-  let res;
-  try{res=await getJSON('api/routeset',opt)}catch(e){res=await getJSON('https://api.adsb.lol/api/0/routeset',opt)}
-  for(const r of (Array.isArray(res)?res:[])){
-   const cs=String(r.callsign||'').trim(); if(!cs)continue;
-   const codes=String(r._airport_codes_iata||r.airport_codes||'').split('-').filter(c=>c&&c!=='unknown');
-   const aps=Array.isArray(r.airports)?r.airports:[];
-   if(codes.length<2||r.plausible===false||r.plausible===0){routes.set(cs,null);continue}
-   const city=i=>String(aps[i]?.location||aps[i]?.name||'');
-   routes.set(cs,{from:codes[0],to:codes[codes.length-1],fromCity:city(0),toCity:city(aps.length-1),intl:aps.some(a=>a&&a.countryiso2&&a.countryiso2!=='US')});
-  }
-  need.forEach(p=>{if(!routes.has(p.cs))routes.set(p.cs,null)});
- }catch(e){/* try again next poll */}
- finally{need.forEach(p=>pending.delete(p.cs))}
+ for(const p of need){
+  pending.add(p.cs);
+  try{
+   const r=await fetch(`https://api.adsbdb.com/v0/callsign/${encodeURIComponent(p.cs)}`);
+   if(r.status===404){routes.set(p.cs,null);continue}
+   if(!r.ok)throw new Error('HTTP '+r.status);
+   const fr=(await r.json())?.response?.flightroute;
+   if(!fr||!fr.origin||!fr.destination){routes.set(p.cs,null);continue}
+   const o=fr.origin,d=fr.destination;
+   const code=a=>String(a.iata_code||a.icao_code||'');
+   routes.set(p.cs,{from:code(o),to:code(d),fromCity:String(o.municipality||o.name||''),toCity:String(d.municipality||d.name||''),
+    intl:[o.country_iso_name,d.country_iso_name].some(c=>c&&c!=='US')});
+  }catch(e){
+   const n=(routeTries.get(p.cs)||0)+1;routeTries.set(p.cs,n);
+   if(n>=3)routes.set(p.cs,null);           // give up after 3 tries: show "Route not published"
+  }finally{pending.delete(p.cs)}
+ }
  render();
 }
 
@@ -410,6 +419,7 @@ function status(){
 }
 
 /* ---------- loop ---------- */
+function applyTheme(){document.documentElement.dataset.theme=cfg.theme==='auto'?'':(cfg.theme||'dark')}
 function showLoc(){
  $('locName').textContent=cfg.place||cfg.auto||'Your location';
  $('locCoords').textContent=`${(+cfg.lat).toFixed(4)}, ${(+cfg.lon).toFixed(4)} · ${cfg.rad} mi radius`;
@@ -427,7 +437,7 @@ async function autoName(){
  }catch(e){}
 }
 function start(){
- clearInterval(timer);drawBase();showLoc();autoName();poll();
+ clearInterval(timer);applyTheme();drawBase();showLoc();autoName();poll();
  timer=setInterval(poll,Math.max(5,+cfg.every||10)*1000);
 }
 setInterval(()=>{const f=featured();if((f?.hex||null)!==lastFeat)render();else drawBlips();status()},1000);
@@ -436,7 +446,7 @@ $('list').addEventListener('click',e=>{const b=e.target.closest('.row');if(b)sel
 /* ---------- settings ---------- */
 const dlg=$('dlg');
 function openSettings(){
- for(const k of ['feature','rotate','place','lat','lon','rad','minAlt','maxAlt','every','ground'])$(k).value=cfg[k];
+ for(const k of ['theme','feature','rotate','place','lat','lon','rad','minAlt','maxAlt','every','ground'])$(k).value=cfg[k];
  $('geoMsg').textContent='Or copy coordinates from Google Maps (long-press your home).';
  dlg.showModal?dlg.showModal():dlg.setAttribute('open','');
 }
@@ -448,7 +458,7 @@ $('form').addEventListener('submit',e=>{
  const lat=parseFloat($('lat').value),lon=parseFloat($('lon').value),rad=parseFloat($('rad').value);
  if(!(Math.abs(lat)<=90&&Math.abs(lon)<=180)){$('geoMsg').textContent='Those coordinates don’t look right.';return}
  const moved=lat!==cfg.lat||lon!==cfg.lon;
- cfg={...cfg,place:$('place').value.trim().slice(0,40),auto:moved?'':cfg.auto,lat,lon,rad:Math.min(100,Math.max(1,rad||10)),minAlt:Math.max(0,parseFloat($('minAlt').value)||0),maxAlt:Math.max(0,parseFloat($('maxAlt').value)||0),every:+$('every').value,ground:$('ground').value,feature:$('feature').value,rotate:+$('rotate').value};
+ cfg={...cfg,place:$('place').value.trim().slice(0,40),auto:moved?'':cfg.auto,lat,lon,rad:Math.min(100,Math.max(1,rad||10)),minAlt:Math.max(0,parseFloat($('minAlt').value)||0),maxAlt:Math.max(0,parseFloat($('maxAlt').value)||0),every:+$('every').value,ground:$('ground').value,feature:$('feature').value,rotate:+$('rotate').value,theme:$('theme').value};
  saveCfg();routes.clear();planes=[];selHex=null;dlg.close();start();
 });
 $('geo').addEventListener('click',()=>{
