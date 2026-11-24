@@ -185,6 +185,7 @@ const compass=deg=>['N','NE','E','SE','S','SW','W','NW'][Math.round(((deg%360)+3
 
 /* ---------- data ---------- */
 const SOURCES=[
+ (la,lo,nm)=>`api/aircraft?lat=${la}&lon=${lo}&dist=${nm}`, // the local helper (server.py)
  (la,lo,nm)=>`https://api.adsb.lol/v2/lat/${la}/lon/${lo}/dist/${nm}`,
  (la,lo,nm)=>`https://api.airplanes.live/v2/point/${la}/${lo}/${nm}`,
  (la,lo,nm)=>`https://opendata.adsb.fi/api/v2/lat/${la}/lon/${lo}/dist/${nm}`
@@ -222,8 +223,9 @@ async function lookupRoutes(){
  if(!need.length)return;
  need.forEach(p=>pending.add(p.cs));
  try{
-  const res=await getJSON('https://api.adsb.lol/api/0/routeset',{method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({planes:need.map(p=>({callsign:p.cs,lat:p.lat,lng:p.lon}))})});
+  const opt={method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({planes:need.map(p=>({callsign:p.cs,lat:p.lat,lng:p.lon}))})};
+  let res;
+  try{res=await getJSON('api/routeset',opt)}catch(e){res=await getJSON('https://api.adsb.lol/api/0/routeset',opt)}
   for(const r of (Array.isArray(res)?res:[])){
    const cs=String(r.callsign||'').trim(); if(!cs)continue;
    const codes=String(r._airport_codes_iata||r.airport_codes||'').split('-').filter(c=>c&&c!=='unknown');
@@ -400,7 +402,7 @@ function render(){
 }
 function status(){
  const d=$('dot'),s=$('stat');
- if(errMsg&&(!lastOk||Date.now()-lastOk>60000)){d.classList.add('err');s.textContent=`Can't reach flight data (${errMsg}) — retrying`;return}
+ if(errMsg&&(!lastOk||Date.now()-lastOk>60000)){d.classList.add('err');s.textContent=/github\.io$/.test(location.hostname)?'Live planes need the helper program (server.py) — see the README on GitHub':`Can't reach flight data (${errMsg}) — retrying`;return}
  d.classList.remove('err');
  if(!lastOk){s.textContent='Connecting…';return}
  const ago=Math.round((Date.now()-lastOk)/1000);
