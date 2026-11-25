@@ -240,6 +240,7 @@ async function lookupRoutes(){
    const o=fr.origin,d=fr.destination;
    const code=a=>String(a.iata_code||a.icao_code||'');
    routes.set(p.cs,{from:code(o),to:code(d),fromCity:String(o.municipality||o.name||''),toCity:String(d.municipality||d.name||''),
+    olat:+o.latitude,olon:+o.longitude,dlat:+d.latitude,dlon:+d.longitude,
     intl:[o.country_iso_name,d.country_iso_name].some(c=>c&&c!=='US')});
   }catch(e){
    const n=(routeTries.get(p.cs)||0)+1;routeTries.set(p.cs,n);
@@ -308,7 +309,7 @@ function traits(p){
  const isCarrier=/^[A-Z]{3}\d/.test(p.cs);
  const r=routes.get(p.cs);
  if(p.mil)t.push('Military');
- if(!p.mil&&!['RCH','SAM','PAT','CNV'].includes(pre)&&((isCarrier&&AIRLINES[pre]&&!US.has(pre))||r?.intl))t.push('International');
+ if(!p.mil&&!['RCH','SAM','PAT','CNV'].includes(pre)&&((isCarrier&&AIRLINES[pre]&&!US.has(pre))||(routeOK(p,r)&&r.intl)))t.push('International');
  if(WIDE.has(p.type))t.push('Wide-body');
  if(p.cat==='A7')t.push('Helicopter');
  if(isCarrier&&!AIRLINES[pre])t.push('Unusual airline');
@@ -374,10 +375,49 @@ async function loadPhoto(hex){
  }catch(e){/* no photo; try again later */}
  finally{photoPending.delete(hex)}
 }
+/* ---------- checking a route against where the plane really is ---------- */
+// Route databases are keyed by flight number, and airlines reuse numbers, so a listed route can be stale.
+const AIRPORTS=[ // nearby airports used to recognise landings and take-offs
+ {c:'DCA',city:'Washington National',lat:38.8521,lon:-77.0377},
+ {c:'IAD',city:'Dulles',lat:38.9445,lon:-77.4558},
+ {c:'BWI',city:'Baltimore',lat:39.1754,lon:-76.6683}];
+const R_KM=6371;
+function gcDist(a1,o1,a2,o2){const p1=toRad(a1),p2=toRad(a2),dp=p2-p1,dl=toRad(o2-o1);const h=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;return 2*R_KM*Math.asin(Math.min(1,Math.sqrt(h)))}
+function gcBearing(a1,o1,a2,o2){const p1=toRad(a1),p2=toRad(a2),dl=toRad(o2-o1);return (Math.atan2(Math.sin(dl)*Math.cos(p2),Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(dl))*180/Math.PI+360)%360}
+const angDiff=(a,b)=>{const d=Math.abs(((a-b)%360+360)%360);return d>180?360-d:d};
+function phase(p){ // landing at / departing from a nearby airport?
+ if(p.ground||p.alt==null||p.alt>8000)return null;
+ let best=null;
+ for(const a of AIRPORTS){const km=gcDist(p.lat,p.lon,a.lat,a.lon);if(km<35&&(!best||km<best.km))best={...a,km}}
+ if(!best)return null;
+ if(p.vr<-300||(p.alt<2500&&p.vr<=0&&angDiff(p.track,gcBearing(p.lat,p.lon,best.lat,best.lon))<70))return {kind:'arr',ap:best};
+ if(p.vr>300)return {kind:'dep',ap:best};
+ return null;
+}
+function routeOK(p,r){
+ if(!r)return false;
+ const ph=phase(p);
+ if(ph)return ph.kind==='arr'?r.to===ph.ap.c:r.from===ph.ap.c;
+ if(![r.olat,r.olon,r.dlat,r.dlon].every(Number.isFinite))return true;
+ const total=gcDist(r.olat,r.olon,r.dlat,r.dlon);
+ const d13=gcDist(r.olat,r.olon,p.lat,p.lon)/R_KM;
+ const xt=Math.abs(Math.asin(Math.sin(d13)*Math.sin(toRad(gcBearing(r.olat,r.olon,p.lat,p.lon)-gcBearing(r.olat,r.olon,r.dlat,r.dlon)))))*R_KM;
+ const toDest=gcDist(p.lat,p.lon,r.dlat,r.dlon), fromOrig=gcDist(r.olat,r.olon,p.lat,p.lon);
+ if(xt>Math.max(80,total*0.12))return false;              // nowhere near the route's path
+ if(fromOrig>total+60||toDest>total+60)return false;        // outside the two airports
+ if(toDest>60&&angDiff(p.track,gcBearing(p.lat,p.lon,r.dlat,r.dlon))>100)return false; // flying away from the destination
+ return true;
+}
+function goodRoute(p){const r=routes.get(p.cs);return routeOK(p,r)?r:null}
 function routeHTML(p){
- const r=routes.get(p.cs);
- if(!r)return `<div class="route" style="font-size:22px;color:var(--mute)">${p.cs&&routes.has(p.cs)?'Route not published':p.cs?'Looking up route…':'No flight number broadcast'}</div>`;
- return `<div class="route"><div>${esc(r.from)}<small>${esc(r.fromCity)}</small></div><div class="arr"></div><div>${esc(r.to)}<small>${esc(r.toCity)}</small></div></div>`;
+ const r=routes.get(p.cs), ok=routeOK(p,r), ph=phase(p);
+ if(ok)return `<div class="route"><div>${esc(r.from)}<small>${esc(r.fromCity)}</small></div><div class="arr"></div><div>${esc(r.to)}<small>${esc(r.toCity)}</small></div></div>`;
+ if(ph&&(routes.has(p.cs)||!p.cs)){
+  const ap=`<div>${esc(ph.ap.c)}<small>${esc(ph.ap.city)}</small></div>`, unk='<div style="color:var(--mute)">—<small>&nbsp;</small></div>';
+  return `<div class="route">${ph.kind==='arr'?unk:ap}<div class="arr"></div>${ph.kind==='arr'?ap:unk}</div><div style="margin:-8px 0 12px;font-size:14px;color:var(--mute)">${ph.kind==='arr'?'Arriving':'Departed'} · ${r?'listed route didn’t match this flight':'full route not published'}</div>`;
+ }
+ const msg=!p.cs?'No flight number broadcast':!routes.has(p.cs)?'Looking up route…':r?'Route unconfirmed':'Route not published';
+ return `<div class="route" style="font-size:22px;color:var(--mute)">${msg}</div>`;
 }
 function render(){
  const f=featured();lastFeat=f?.hex||null;
@@ -400,8 +440,8 @@ function render(){
  }
  if(f)loadPhoto(f.hex);
  $('list').innerHTML=planes.map(p=>{
-  const r=routes.get(p.cs);
-  const sub=[r?`${r.from} → ${r.to}`:'',airline(p)||typeName(p)].filter(Boolean).join(' · ');
+  const r=goodRoute(p), ph=r?null:phase(p);
+  const sub=[r?`${r.from} → ${r.to}`:ph?(ph.kind==='arr'?`→ ${ph.ap.c}`:`${ph.ap.c} →`):'',airline(p)||typeName(p)].filter(Boolean).join(' · ');
   return `<button class="row${p.hex===f?.hex?' sel':''}" data-hex="${esc(p.hex)}" type="button">
    <div><div class="c">${esc(label(p))}</div><div class="s">${esc(sub)}</div></div>
    <div class="trend">${esc(trend(p))}</div>
