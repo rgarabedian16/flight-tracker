@@ -395,6 +395,7 @@ function phase(p){ // landing at / departing from a nearby airport?
  return null;
 }
 function routeOK(p,r){
+ return !!r; // route checks switched off: they hid too many good routes
  if(!r)return false;
  const ph=phase(p);
  if(ph)return ph.kind==='arr'?r.to===ph.ap.c:r.from===ph.ap.c;
